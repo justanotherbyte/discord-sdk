@@ -44,8 +44,6 @@ class HeartbeatHandler(threading.Thread):
         
         self.daemon = True
 
-        
-
     def run(self):
         while not self._stop_ev.wait(self.interval):
             print("acking")
@@ -55,7 +53,6 @@ class HeartbeatHandler(threading.Thread):
 
             f.result()
 
-
     def get_heartbeat_payload(self) -> dict:
         payload = {
             "op": self.socket.HEARTBEAT,
@@ -63,7 +60,6 @@ class HeartbeatHandler(threading.Thread):
         }
 
         return payload
-
 
     def ack(self):
         ack_time = time.perf_counter()
@@ -73,7 +69,6 @@ class HeartbeatHandler(threading.Thread):
     def stop(self):
         self._stop_ev.set()
     
-
 
 class DiscordWebSocket:
     DISPATCH           = 0
@@ -139,12 +134,10 @@ class DiscordWebSocket:
             if not self._can_handle_close():
                 raise WebSocketClosure
 
-
     def _can_handle_close(self) -> bool:
         code = self.close_code or self.socket.close_code
         return code not in {1000, 4004, 4010, 4011, 4012, 4013, 4014}
 
-    
     async def poll_socket(self):
         try:
             msg = await self.socket.receive(timeout = self._max_heartbeat_timeout)
@@ -210,18 +203,8 @@ class DiscordWebSocket:
             self.sequence = msg["s"]
             self.session_id = data["session_id"]
             
-
     async def close(self):
         if self._heartbeat:
             self._heartbeat.stop()
 
         await self.socket.close(code = 4000)
-
-
-
-
-
-
-
-
-    
