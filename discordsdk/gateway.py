@@ -17,6 +17,8 @@ import aiohttp
 if TYPE_CHECKING:
     from aiohttp import ClientWebSocketResponse
     from aiohttp.http_websocket import WSMessage
+
+    from .client import Client
     _NUMBER = Union[float, int]
 
 
@@ -46,9 +48,7 @@ class HeartbeatHandler(threading.Thread):
 
     def run(self):
         while not self._stop_ev.wait(self.interval):
-            print("acking")
             heartbeat_payload = self.get_heartbeat_payload()
-            print(heartbeat_payload)
             f = asyncio.run_coroutine_threadsafe(self.socket.send_as_json(heartbeat_payload), loop = self.socket.loop)
 
             f.result()
@@ -97,7 +97,19 @@ class DiscordWebSocket:
 
         # dynamically set attributes
         self.token: Optional[str] = None
+        self.client: Optional[Client] = None
         self._max_heartbeat_timeout: Optional[_NUMBER] = None
+
+
+    @classmethod
+    async def from_client(cls, client: Client, ws: ClientWebSocketResponse, loop: asyncio.AbstractEventLoop):
+        socket = cls(ws, loop = loop)
+        socket.token = client.http.token
+        socket.client = client
+
+        await socket.poll_socket()
+
+        return socket
 
     async def identify(self):
         payload = {
@@ -141,7 +153,6 @@ class DiscordWebSocket:
     async def poll_socket(self):
         try:
             msg = await self.socket.receive(timeout = self._max_heartbeat_timeout)
-            print(msg.type)
             if msg.type is aiohttp.WSMsgType.TEXT:
                 await self.handle_message(msg)
             elif msg.type is aiohttp.WSMsgType.BINARY:
@@ -165,9 +176,11 @@ class DiscordWebSocket:
                     raise ReconnectWebSocket(self.session_id, self.sequence, resume=True)
                 raise ReconnectWebSocket(self.session_id, self.sequence)
 
-    async def handle_message(self, message: WSMessage):
+    async def handle_message(self, message: WSMessage, *, debug: bool = False):
         msg = message.json()
-        print(msg)
+
+        if debug is True:
+            print(msg)
 
         op: int = msg.get("op")
         data: dict = msg.get("d")
@@ -178,7 +191,6 @@ class DiscordWebSocket:
             self.sequence = seq
 
         if op != self.DISPATCH:
-            print("Received non-dispatch related message")
             if op == self.HELLO:
                 interval = data["heartbeat_interval"] / 1000.0
                 self._max_heartbeat_timeout = interval
@@ -188,7 +200,6 @@ class DiscordWebSocket:
                 await self.identify()
 
             if op == self.HEARTBEAT:
-                print("Received heartbeat op code")
                 heartbeat = self._heartbeat
                 if heartbeat:
                     payload = heartbeat.get_heartbeat_payload()
@@ -202,6 +213,10 @@ class DiscordWebSocket:
         if event == "READY":
             self.sequence = msg["s"]
             self.session_id = data["session_id"]
+
+
+        # our last priority is notifying the client of a received event
+        await self.client._notify_event(event, msg)
             
     async def close(self):
         if self._heartbeat:
