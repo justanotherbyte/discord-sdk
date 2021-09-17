@@ -18,6 +18,7 @@ class Embed:
         self.description = description
         self.colour = colour or color
 
+        self.image_url: Optional[str] = None
         self.fields: List[Dict[str, str]] = []
 
     def add_field(self, *, name: str, value: str, inline: bool = False):
@@ -30,6 +31,10 @@ class Embed:
         self.fields.append(array)
         return self
 
+    def set_image(self, *, url: str):
+        self.image_url = url
+        return self
+
     def to_dict(self) -> dict:
         array = {
             "title": self.title,
@@ -37,4 +42,11 @@ class Embed:
             "color": self.colour,
             "fields": self.fields
         }
+
+        if self.image_url:
+            image_array = {
+                "url": self.image_url
+            }
+
+            array["image"] = image_array
         return array
