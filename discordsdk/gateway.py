@@ -213,7 +213,15 @@ class DiscordWebSocket:
         if event == "READY":
             self.sequence = msg["s"]
             self.session_id = data["session_id"]
+            application_data = data["application"]
+            application_id = int(application_data["id"])
+            self.client.http.application_id = application_id
 
+            if self.client._ready_ev.is_set() is False:
+                await self.client.register_application_commands()
+
+        if event == "INTERACTION_CREATE":
+            await self.client.process_application_commands(data)
 
         # our last priority is notifying the client of a received event
         await self.client._notify_event(event, msg)
