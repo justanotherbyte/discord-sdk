@@ -22,7 +22,7 @@ async def parse_http_response(response: ClientResponse) -> Optional[dict]:
         return None
 
 
-def _sanitize_embeds(self, embed, embeds):
+def _sanitize_embeds(embed, embeds):
         if embed and embeds:
             raise ValueError("Cannot pass both embed and embeds kwargs.")
 

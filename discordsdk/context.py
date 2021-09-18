@@ -72,10 +72,7 @@ class SlashContext(AbstractContext):
             interaction_token = self.interaction_token
         )
 
-        hook._state = State(
-            client=self._state.client,
-            http=self._state.http
-        )
+        hook._state = State.from_state(self._state)
 
         payload = {
             "content": content,
@@ -91,10 +88,7 @@ class SlashContext(AbstractContext):
             interaction_token = self.interaction_token
         )
 
-        hook._state = State(
-            client=self._state.client,
-            http=self._state.http
-        )
+        hook._state = State.from_state(self._state)
 
         return await hook.DELETE()
 
