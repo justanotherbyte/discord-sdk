@@ -20,3 +20,16 @@ async def parse_http_response(response: ClientResponse) -> Optional[dict]:
         return json.loads(content)
     except Exception:
         return None
+
+
+def _sanitize_embeds(self, embed, embeds):
+        if embed and embeds:
+            raise ValueError("Cannot pass both embed and embeds kwargs.")
+
+        if embed:
+            embeds = [embed]
+        
+        if embed is None and embeds is None:
+            embeds = []
+
+        return embeds

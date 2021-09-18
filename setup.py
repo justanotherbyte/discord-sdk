@@ -17,7 +17,7 @@ setup(
     author='moanie',
     python_requires='>=3.7.0',
     url='https://github.com/moanie/discord-sdk',
-    version="0.2.8",
+    version="0.1.2a",
     packages=find_packages(),
     license='MIT',
     description='An asynchronous Discord library for python.',

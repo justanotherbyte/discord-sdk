@@ -9,6 +9,9 @@ from typing import (
 from .abc import AbstractContext
 from .http import Route
 from .types import InteractionCallbackType
+from .webhooks import Webhook
+from .state import State
+from .utils import _sanitize_embeds
 
 if TYPE_CHECKING:
     from .ac import ApplicationCommand
@@ -29,19 +32,13 @@ class SlashContext(AbstractContext):
         
     async def send(
         self,
-        content: str,
+        content: Optional[str] = None,
         *,
         embed: Optional[Embed] = None,
         embeds: Optional[List[Embed]] = None
     ):
-        if embed and embeds:
-            raise ValueError("Cannot pass both embed and embeds kwargs.")
-
-        if embed:
-            embeds = [embed]
         
-        if embed is None and embeds is None:
-            embeds = []
+        embeds = _sanitize_embeds(embed, embeds)
         
         payload = {
             "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -59,3 +56,71 @@ class SlashContext(AbstractContext):
         )
 
         await self._state.http.request(route, json = payload)
+
+    async def edit_initial(
+        self,
+        content: Optional[str] = None,
+        *,
+        embed: Optional[Embed] = None,
+        embeds: Optional[List[Embed]] = None
+    ):
+        embeds = _sanitize_embeds(embed, embeds)
+
+        hook = Webhook(
+            "/webhooks/{application_id}/{interaction_token}/messages/@original",
+            application_id = self._state.http.application_id,
+            interaction_token = self.interaction_token
+        )
+
+        hook._state = State(
+            client=self._state.client,
+            http=self._state.http
+        )
+
+        payload = {
+            "content": content,
+            "embeds": [e.to_dict() for e in embeds]
+        }
+
+        return await hook.PATCH(json = payload)
+
+    async def delete_initial(self):
+        hook = Webhook(
+            "/webhooks/{application_id}/{interaction_token}/messages/@original",
+            application_id = self._state.http.application_id,
+            interaction_token = self.interaction_token
+        )
+
+        hook._state = State(
+            client=self._state.client,
+            http=self._state.http
+        )
+
+        return await hook.DELETE()
+
+    async def post_followup(
+        self,
+        content: str,
+        *,
+        embed: Optional[Embed] = None,
+        embeds: Optional[List[Embed]] = None
+    ):
+        embeds = _sanitize_embeds(embed, embeds)
+        
+        hook = Webhook(
+            "/webhooks/{application_id}/{interaction_token}",
+            application_id = self._state.http.application_id,
+            interaction_token = self.interaction_token
+        )
+        
+        hook._state = State.from_state(self._state)
+
+        payload = {
+            "content": content,
+            "embeds": [e.to_dict() for e in embeds]
+        }
+
+        return await hook.POST(json = payload)
+
+
+    

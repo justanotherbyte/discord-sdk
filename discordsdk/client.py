@@ -7,13 +7,14 @@ from typing import (
     List
 )
 
-from .gateway import DiscordWebSocket
+from .gateway import DiscordWebSocket, WebSocketClosure, ReconnectWebSocket
 from .http import HTTPClient
 from .events import EventListener
 from .utils import Snowflake
 from .ac import ApplicationCommand
 from .context import SlashContext
 from .state import State
+from .exceptions import CommandException
 
 class Client:
     def __init__(self):
@@ -39,7 +40,22 @@ class Client:
         self.ws = ws
 
         while True:
-            await self.ws.poll_socket()
+            try:
+                await self.ws.poll_socket()
+            except (WebSocketClosure, ReconnectWebSocket) as ws_exc:
+                if isinstance(ws_exc, WebSocketClosure):
+                    self.loop.stop()
+                
+                if isinstance(ws_exc, ReconnectWebSocket):
+                    if ws_exc.op == "RESUME":
+                        await self.ws.resume()
+                    elif ws_exc.op == "IDENTIFY":
+                        await self.ws.close()
+                        
+                        aiohttp_ws = await self.http.ws_connect()
+                        ws = await DiscordWebSocket.from_client(self, aiohttp_ws, loop = self.loop)
+                        self.ws = ws
+                    
 
     def listen(self, name: str):
         def inner(func: Callable):
@@ -132,7 +148,10 @@ class Client:
         state = State(client=self, http=self.http)
         ctx._state = state
 
-        await command.callback(ctx)
+        try:
+            await command.callback(ctx)
+        except Exception as exc:
+            raise CommandException(command.name, exc)
 
 
     def _create_application_command_object(self, data: dict) -> ApplicationCommand:

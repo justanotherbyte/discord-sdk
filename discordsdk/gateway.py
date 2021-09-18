@@ -29,7 +29,7 @@ class ReconnectWebSocket(Exception):
     def __init__(self, session_id, sequence, *, resume=False):
         self.session_id = session_id
         self.sequence = sequence
-        self.op = "READY" if resume is False else "RESUME"
+        self.op = "IDENTIFY" if resume is False else "RESUME"
 
 class HeartbeatHandler(threading.Thread):
     def __init__(self, *args, **kwargs):
@@ -168,7 +168,7 @@ class DiscordWebSocket:
                 self._heartbeat = None
             if isinstance(exc, asyncio.TimeoutError):
                 # the connection dropped for some reason, attempt a re-connect
-                raise ReconnectWebSocket from exc
+                raise ReconnectWebSocket(self.session_id, self.sequence) from exc
             
             if isinstance(exc, WebSocketClosure):
                 # the connection closed

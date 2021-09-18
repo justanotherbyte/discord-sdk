@@ -24,3 +24,13 @@ class State:
         self.http = http
 
         self.data = data
+
+    @classmethod
+    def from_state(cls, state):
+        s = cls(
+            client = state.client,
+            http = state.http,
+            data = state.data
+        )
+
+        return s

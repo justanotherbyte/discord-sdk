@@ -13,6 +13,7 @@ import aiohttp
 
 from .embed import Embed
 from .utils import Snowflake, parse_http_response
+from .exceptions import HTTPException
 
 if TYPE_CHECKING:
     from aiohttp import (
@@ -67,7 +68,7 @@ class HTTPClient:
             if 300 > resp.status >= 200:
                 return data
             
-            print("http error")
+            raise HTTPException(resp, data)
 
     def send_message(
         self,
